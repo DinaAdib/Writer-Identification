@@ -1,3 +1,10 @@
+
+## For signal processing
+from scipy import signal
+from scipy.signal import filter_design as fd
+from scipy import fftpack
+
+
 import imutils
 import skimage.io as io
 import matplotlib.pyplot as plt
@@ -46,11 +53,22 @@ import math
 def splitz(seq, smallest):
     group = []
     for i in range(len(seq)):
-        if (seq[i] >= (smallest+1000)):
+        if (seq[i] >= (smallest+5000)):
             group.append(i)
         elif group:
             yield group
             group = []
+
+def splitOnArray(seq, smallest):
+    group = []
+    index = 0
+    for i in range(len(seq)):
+        if (seq[i] > smallest[index]+5000):
+            group.append(i)
+        elif group:
+            yield group
+            group = []
+            index+=1
 
 ## This function scales all images to height 120 pixels
 def verticalScaling(img):
@@ -225,7 +243,7 @@ def getHandwrittenPart(greyImage):
     ax[1].set_axis_off()
     ax[1].set_title('Detected lines')
     plt.tight_layout()
-    plt.show()
+    # plt.show()
     height=greyImage.shape[0]
 
     yoptimum = np.array(yoptimum).astype(int)
@@ -314,12 +332,17 @@ def preprocessForm(filename, formsFolderName):
     ax[0].set_title('Input image')
     ax[0].set_axis_off()
     plt.tight_layout()
-    plt.show()
+    # plt.show()
     verticalHistogram = image.sum(axis=1)
+    box = np.ones(5) / 5
+    verticalHistogram = np.convolve(verticalHistogram, box, mode='same')
+    ys = verticalHistogram
+    localMinima = [y for i, y in enumerate(ys) if ((i == 0) or (ys[i - 1] >= y)) and ((i == len(ys) - 1) or (y < ys[i + 1]))]
+    linesArrays = splitOnArray(verticalHistogram, localMinima)
     # plt.plot(verticalHistogram)
     # plt.show()
     horizontalHistogram = image.sum(axis=0)
-    linesArrays = (list(splitz(verticalHistogram, 1000)))
+    # linesArrays = (list(splitz(verticalHistogram, 2000)))
     marginsArrays = (list(splitz(horizontalHistogram[30:], 0)))
     # plt.plot(horizontalHistogram)
     # plt.show()
@@ -370,7 +393,7 @@ def preprocessForm(filename, formsFolderName):
 # This function sets features vectors for a specific form image using sliding window technique
 def getFeaturesVectors(extractedLines, windowWidth):
 
-    imageFeaturesVectors=[{} for y in range(len(extractedLines))]
+    imageFeaturesVectors=[[] for  y in range(len(extractedLines))]
     for index, img in enumerate(extractedLines):
         # img[img==255] = 1  ##dark values are 1 bec they are the foreground
         # show_images([img],["AFTER OSTU"])
@@ -472,14 +495,29 @@ def getFeaturesVectors(extractedLines, windowWidth):
 
 
                 # append averaged features vector
-        imageFeaturesVectors[index]['Black Pixels Count']=np.average(blackPixelsLine)
-        imageFeaturesVectors[index]['Center of Gravity'] = [np.average(centerOfGravityXLine), np.average(centerOfGravityYLine)]
-        imageFeaturesVectors[index]['Moment'] = [np.average(MomentXLine), np.average(MomentYLine)]
-        imageFeaturesVectors[index]['Upper Contour Position'] = np.average(upperContourPosition, axis=0)
-        imageFeaturesVectors[index]['Lower Contour Position'] = np.average(lowerContourPosition, axis=0)
-        imageFeaturesVectors[index]['Upper Contour Direction'] = np.average(upperContourOrientation)
-        imageFeaturesVectors[index]['Lower Contour Direction'] =  np.average(lowerContourOrientation)
-        imageFeaturesVectors[index]['Horizontal Black to White'] =  np.average(horizontalBlackToWhiteTrans)
-        imageFeaturesVectors[index]['Vertical Black to White'] =  np.average(verticalBlackToWhiteTrans)
-        imageFeaturesVectors[index]['Black Pixels Fraction'] =  np.average(blackPixelsBetweenContours)
+        # imageFeaturesVectors[index]['Black Pixels Count']=np.average(blackPixelsLine)
+        # imageFeaturesVectors[index]['Center of Gravity'] = [np.average(centerOfGravityXLine), np.average(centerOfGravityYLine)]
+        # imageFeaturesVectors[index]['Moment'] = [np.average(MomentXLine), np.average(MomentYLine)]
+        # imageFeaturesVectors[index]['Upper Contour Position'] = np.average(upperContourPosition, axis=0)
+        # imageFeaturesVectors[index]['Lower Contour Position'] = np.average(lowerContourPosition, axis=0)
+        # imageFeaturesVectors[index]['Upper Contour Direction'] = np.average(upperContourOrientation)
+        # imageFeaturesVectors[index]['Lower Contour Direction'] =  np.average(lowerContourOrientation)
+        # imageFeaturesVectors[index]['Horizontal Black to White'] =  np.average(horizontalBlackToWhiteTrans)
+        # imageFeaturesVectors[index]['Vertical Black to White'] =  np.average(verticalBlackToWhiteTrans)
+        # imageFeaturesVectors[index]['Black Pixels Fraction'] =  np.average(blackPixelsBetweenContours)
+
+        imageFeaturesVectors[index].append(np.average(blackPixelsLine))
+        imageFeaturesVectors[index].append(np.average(centerOfGravityXLine))
+        imageFeaturesVectors[index].append(np.average(centerOfGravityYLine))
+        imageFeaturesVectors[index].append(np.average(MomentXLine))
+        imageFeaturesVectors[index].append(np.average(MomentYLine))
+        imageFeaturesVectors[index].append(np.average(upperContourPosition, axis=0)[0])
+        imageFeaturesVectors[index].append(np.average(upperContourPosition, axis=0)[1])
+        imageFeaturesVectors[index].append(np.average(lowerContourPosition, axis=0)[0])
+        imageFeaturesVectors[index].append(np.average(lowerContourPosition, axis=0)[1])
+        imageFeaturesVectors[index].append(np.average(upperContourOrientation))
+        imageFeaturesVectors[index].append(np.average(lowerContourOrientation))
+        imageFeaturesVectors[index].append(np.average(horizontalBlackToWhiteTrans))
+        imageFeaturesVectors[index].append(np.average(verticalBlackToWhiteTrans))
+        imageFeaturesVectors[index].append(np.average(blackPixelsBetweenContours))
     return imageFeaturesVectors
