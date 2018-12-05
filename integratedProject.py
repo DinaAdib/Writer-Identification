@@ -29,7 +29,7 @@ for filename in glob.glob(formsFolderName + '/*.png'):
         if featuresVectors is not None:
             formsFeaturesVectors = np.concatenate((formsFeaturesVectors, featuresVectors))
             for i in range(len(extractedLines)):
-                yTrain.append(writers[formID])
+                yTrain.append(int(writers[formID]))
             # formsFeaturesVectors[writers[formID]] = np.array(formsFeaturesVectors[writers[formID]])
             with open("Features"+ writers[formID]+".csv", 'a') as filedata:
                 writer = csv.writer(filedata, delimiter=',')
@@ -54,7 +54,7 @@ for filename in glob.glob(formsFolderName + '/*.png'):
         if featuresVectors is not None:
             testFeaturesVectors = np.concatenate((testFeaturesVectors, featuresVectors))
             for i in range(len(extractedLines)):
-                yTest.append(writers[formID])
+                yTest.append(int(writers[formID]))
             # formsFeaturesVectors[writers[formID]] = np.array(formsFeaturesVectors[writers[formID]])
             with open("Features"+ writers[formID]+".csv", 'a') as filedata:
                 writer = csv.writer(filedata, delimiter=',')
@@ -74,21 +74,6 @@ X_train = formsFeaturesVectors
 n_classes = len(np.unique(yTrain))
 uniqueClasses = np.unique(yTrain)
 
-#-0---------------------------------------------
-# __init__(self, n_components=1, covariance_type='full', tol=1e-3,
-#                  reg_covar=1e-6, max_iter=100, n_init=1, init_params='kmeans',
-#                  weights_init=None, means_init=None, precisions_init=None,
-#                  random_state=None, warm_start=False,
-#                  verbose=0, verbose_interval=10)
-
-
-# Try GMMs using different types of covariances.
-# classifiers = dict((covar_type, GaussianMixture(n_components=n_classes,
-#                     covariance_type=covar_type, max_iter=20))
-#                    for covar_type in ['spherical', 'diag', 'tied', 'full'])
-#
-# classifier1=GaussianMixture(n_components=10 , covariance_type="full" , )
-#n_classifiers = len(classifiers)
 
 predictions =[]
 
@@ -140,24 +125,21 @@ for i in range(len(uniqueClasses)):
     indices=np.where(yTrain==i)
     n_components = range(1,np.array(indices).shape[1])
 
-    models = [GaussianMixture(n, covariance_type='diag', random_state=0).fit(X_train[indices])
+    models = [GaussianMixture(n, covariance_type='diag', random_state=0,  init_params = 'kmeans').fit(X_train[indices])
               for n in n_components]
 
     bic_y=[m.bic(X_train[indices]) for m in models]
-    plt.plot(n_components, bic_y, label='BIC')
-    plt.plot(n_components, [m.aic(X_train[indices]) for m in models], label='AIC')
-    plt.legend(loc='best')
-    plt.xlabel('n_components');
+    aic_y=[m.aic(X_train[indices]) for m in models]
 
-    bestN=np.min(bic_y)
+    bestN=np.argmin(aic_y)
 
-    classifier = GaussianMixture(n_components=bestN, covariance_type="diag", max_iter=100)
+    classifier = GaussianMixture(n_components=bestN, covariance_type="diag", max_iter=100, random_state=0,  init_params = 'kmeans')
     classifier.fit(X_train[indices])
 
     mypredictions = []
-    for testLine in testFeaturesVectors:
-        testLine = testLine.reshape(1,featuresCount)
-        mypredictions.append(classifier.score(testLine))
+    # for testLine in testFeaturesVectors:
+    #     testLine = testLine.reshape(1,featuresCount)
+    mypredictions.append(classifier.score(testFeaturesVectors))
 
     predictions.append(mypredictions)
 
@@ -195,11 +177,7 @@ print(yTest == np.argmax(predictions ,axis=0))
 
 
 
-#
-#
-#
-#
-#
+
 # for index, (name, classifier) in enumerate(classifiers.items()):
 #     # Since we have class labels for the training data, we can
 #     # initialize the GMM parameters in a supervised manner.
