@@ -86,9 +86,9 @@ def verticalScaling(img):
     lb=peak+1
     while lb<r and horizontalProjection[lb]>p/2 :
         lb=lb+1
-    print(" Peak Value= ",horizontalProjection[peak])
-    print(" Sqrt Peak Value= ",math.sqrt(p) ," Peak/2= " , p/2 )
-    print("Peak Index= ", peak , " LB= ",lb , " r is ", r)
+    # print(" Peak Value= ",horizontalProjection[peak])
+    # print(" Sqrt Peak Value= ",math.sqrt(p) ," Peak/2= " , p/2 )
+    # print("Peak Index= ", peak , " LB= ",lb , " r is ", r)
 
     if lb !=r:
         img[lb,:]=np.ones([1 ,c])
@@ -99,7 +99,7 @@ def verticalScaling(img):
         ub=ub-1
     if ub != 0:
         img[ub,:]=np.ones([1 ,c])
-    print(" UB= ",ub)
+    # print(" UB= ",ub)
     if lb >= (r-2):
         return None
     ## Plot Image and Histogram
@@ -219,7 +219,7 @@ def getHandwrittenPart(greyImage):
         y2 = 0
         x2 = dist / math.sin(angle)
         angleDegree= angle*180/np.pi
-        print(angleDegree)
+        # print(angleDegree)
 
         if(angleDegree<=100 and angleDegree>=80 ):
             yoptimum.append(x2)
@@ -247,7 +247,7 @@ def getHandwrittenPart(greyImage):
     height=greyImage.shape[0]
 
     yoptimum = np.array(yoptimum).astype(int)
-    print("BEFORE:" ,yoptimum)
+    # print("BEFORE:" ,yoptimum)
     yoptimum=yoptimum[yoptimum>int(height/8)]
     yoptimum=yoptimum[yoptimum< int(7*height/8)]
 
@@ -257,7 +257,7 @@ def getHandwrittenPart(greyImage):
     yend=0
 
 
-    print("After" , yoptimum)
+    # print("After" , yoptimum)
 
     for i,y in enumerate(yoptimum):
         if i!=0 and y-yoptimum[i-1]>1000:
@@ -389,6 +389,11 @@ def preprocessForm(filename, formsFolderName):
                 counter += 1
 
     return extractedLines
+
+def normalizeFeatures(features):
+    features = (features - np.mean(features, axis=0))/(np.std(features,axis=0))
+    return features
+
 
 # This function sets features vectors for a specific form image using sliding window technique
 def getFeaturesVectors(extractedLines, windowWidth):
