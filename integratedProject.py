@@ -1,221 +1,189 @@
 import csv
 
 from commonfunctions import *
+
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from sklearn.mixture import GaussianMixture
 
 ##########Global Variables############
-formsFolderName = "Training"
+formsFolderName = "forms"
 windowWidth=14
-featuresCount = 14
-featuresVectors = []
+featuresCount = 3
+iterationsCount = 40
+accuracy = 0
+
+
+
+def plot(x, y, z,  title='', xlabel='', ylabel='', zlabel='',color_style_str='', label_str='', figure=None, axis=None):
+    if figure is None:
+        fig = plt.figure()
+    else:
+        fig = figure
+    ax = axis
+
+    #TODO: Add title, x_label, y_label, z_label to ax.
+    ax.set_title(title)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.set_zlabel(zlabel)
+
+    #TODO: Scatter plot of data points with coordinates (x, y, z) with the corresponding color and label.
+    ax.scatter(x, y, z, c=color_style_str)
+    handles, labels = ax.get_legend_handles_labels()
+
+    unique = list(set(labels))
+    handles = [handles[labels.index(u)] for u in unique]
+    labels = [labels[labels.index(u)] for u in unique]
+
+    ax.legend(handles, labels)
 
 ################Code##################
 if glob.glob(formsFolderName + '/*.png') != True:
     print("Please make sure that this folder exists")
 
 writers = labelData()
-# formsFeaturesVectors = {writerID: np.empty([0, 14]) for writerID in writers.values()}
-formsFeaturesVectors = np.empty([0, featuresCount])
-yTrain = []
-yTest = []
+writerForms = labelForms()
+candidateWriters = {k:v for k, v in writerForms.items() if len(v) > 2}
 
-count = 0
-# For each form, extract lines and their corresponding features
-for filename in glob.glob(formsFolderName + '/*.png'):
-    formID = re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1)
-    extractedLines = preprocessForm(filename, formsFolderName)
-    if len(extractedLines) != 0:
-        featuresVectors = np.array(getFeaturesVectors(extractedLines, windowWidth))
-        if featuresVectors is not None:
-            formsFeaturesVectors = np.concatenate((formsFeaturesVectors, featuresVectors))
-            for i in range(len(extractedLines)):
-                yTrain.append(int(writers[formID]))
-            # formsFeaturesVectors[writers[formID]] = np.array(formsFeaturesVectors[writers[formID]])
-            with open("Features"+ writers[formID]+".csv", 'a') as filedata:
-                writer = csv.writer(filedata, delimiter=',')
-                for featuresVector in featuresVectors:
-                    writer.writerow(featuresVector)
-    else:
-        print("Zero extracted lines")
-        # np.savetxt("Features"+ writers[formID]+".csv", formsFeaturesVectors[writers[formID]], delimiter=",")
+total = 0
+for t in range(iterationsCount):
 
+    trainingFormIDs, testingFormID, trainingLabels, testingLabel = pickRandomForms(candidateWriters)
+    # trainingFormIDs = ['e07-094','g06-011b', 'g06-026b', 'g07-065', 'g07-069a']
+    # trainingFormIDs = ['e07-094', 'e07-098', 'g06-011b', 'g06-026b', 'g07-065', 'g07-069a']
 
-formsFeaturesVectors = normalizeFeatures(formsFeaturesVectors)
+    # trainingLabels = [0,1,1,2,2]
+    # testingFormID =
+    # testingFormID = ['e07-101','e07-105','g06-031b','g06-037b','g07-071a','g07-074a']
+    # testingFormID = ['e07-101','g06-031b']
+    # testingFormID = ['e07-101']
+    # testingLabel = 1
+    # testingLabel = [0]
+    # formsFeaturesVectors = {writerID: np.empty([0, 14]) for writerID in writers.values()}
+    # trainingFormIDs = ['f04-100']
+    xTrain = np.empty([0, featuresCount])
+    yTrain = []
+    xTest = np.empty([0, featuresCount])
+    yTest = []
+    featuresVectors = []
+    formsFeaturesVectors = np.empty([0, featuresCount])
 
-testFeaturesVectors = np.empty([0, featuresCount])
-formsFolderName = "Testing"
-count = 0
-# For each form, extract lines and their corresponding features
-for filename in glob.glob(formsFolderName + '/*.png'):
-    formID = re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1)
-    extractedLines = preprocessForm(filename, formsFolderName)
-    if len(extractedLines) != 0:
-        featuresVectors = np.array(getFeaturesVectors(extractedLines, windowWidth))
-        if featuresVectors is not None:
-            testFeaturesVectors = np.concatenate((testFeaturesVectors, featuresVectors))
-            for i in range(len(extractedLines)):
-                yTest.append(int(writers[formID]))
-            # formsFeaturesVectors[writers[formID]] = np.array(formsFeaturesVectors[writers[formID]])
-            with open("Features"+ writers[formID]+".csv", 'a') as filedata:
-                writer = csv.writer(filedata, delimiter=',')
-                for featuresVector in featuresVectors:
-                    writer.writerow(featuresVector)
-    else:
-        print("Zero extracted lines")
-        # np.savetxt("Features"+ writers[formID]+".csv", formsFeaturesVectors[writers[formID]], delimiter=",")
+    ##########Processing Training form#################
+    for trainingIndex, formID in enumerate(trainingFormIDs):
+        filename = formsFolderName + "/" + formID + ".png"##re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1)
+        formsFeaturesVectors, labels = getLabeledData(filename, windowWidth, trainingLabels[trainingIndex], formsFeaturesVectors, yTrain)
+        xTrain = formsFeaturesVectors
 
+    xTrain, mean, std = normalizeFeatures(xTrain)
 
+    testFeaturesVectors = np.empty([0, featuresCount])
+    ##########Processing testing form#################
+    # for testingIndex, testFormID in enumerate(testingFormID):
+        # filename = formsFolderName + "/" + testFormID + ".png"  ##re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1)
+        # testFeaturesVectors, yTest = getLabeledData(filename, windowWidth, testingLabel[testingIndex], testFeaturesVectors,yTest)
+        # xTest = testFeaturesVectors
 
+    filename = formsFolderName + "/" + testingFormID + ".png"  ##re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1)
+    testFeaturesVectors, yTest = getLabeledData(filename, windowWidth, testingLabel, testFeaturesVectors,
+                                                yTest)
+    xTest = testFeaturesVectors
 
-testFeaturesVectors = normalizeFeatures(testFeaturesVectors)
+    xTest = (xTest - mean) / std
 
-yTrain = np.array(yTrain)
-X_train = formsFeaturesVectors
-n_classes = len(np.unique(yTrain))
-uniqueClasses = np.unique(yTrain)
+    yTrain = np.array(yTrain)
+    xTest = np.array(xTest)
+    xTrain = np.array(xTrain)
+    yTest = np.array(yTest)
+    n_classes = len(np.unique(yTrain))
+    uniqueClasses = np.unique(yTrain)
 
 
-predictions =[]
+    predictions = []
 
+    # Visualization of features
+    # fig = plt.figure()
+    # c = ['r','g','b']
+    # ax = fig.add_subplot('111', projection='3d')
+    # for i in range(len(uniqueClasses)):
+    #     indices = np.where(yTrain == i)
+    #     plot(np.mean(xTrain[indices, 0]), np.mean(xTrain[indices, 1]),i, title='Training Data',
+    #          xlabel='Features', ylabel='Feature 2', zlabel='Class.', color_style_str=c[i],
+    #          label_str="Rectangle",
+    #          figure=fig, axis=ax)
+    #
+    # plot(np.mean(xTest[:,0]), np.mean(xTest[:, 1]), 1, title='Training Data',
+    #      xlabel='Features', ylabel='Feature 2', zlabel='Class.', color_style_str='c',
+    #      label_str="Rectangle",
+    #      figure=fig, axis=ax)
+    # plt.show()
+    ########### Trial with BIC #################3
+    for i in range(len(uniqueClasses)):
+        indices=np.where(yTrain==i)
+        # n_components = range(1,4)
+        #
+        # models = [GaussianMixture(n, covariance_type='diag', random_state=0,  init_params = 'kmeans').fit(xTrain[indices])
+        #           for n in n_components]
+        #
+        # bic_y=[m.bic(xTrain[indices]) for m in models]
+        # aic_y=[m.aic(xTrain[indices]) for m in models]
+        #
+        # bestN=min(np.argmin(aic_y),np.argmin(bic_y))
+        # print("Best n is ", bestN)
+        classifier = GaussianMixture(n_components=2,random_state=0,
+    covariance_type='diag', tol=0.00001,
+    reg_covar=1e-06,
+    max_iter=10000)
+        if xTrain[indices].shape[0] != 0:
+            classifier.fit(xTrain[indices])
 
-for writerID in uniqueClasses:
-    yTrain[yTrain == writerID] =  int(np.where(uniqueClasses == writerID)[0][0])
+            mypredictions = []
+            # for iTest in range(len(uniqueClasses)):
+            #     testIndices=np.where(yTest==iTest)
+            #     if len(testIndices[0]) != 0:
+            #         for testVector in xTest[testIndices]:
+            #             testVector = testVector.reshape(1,-1)
+            #             mypredictions.append(classifier.predict_proba(testVector))
+            #         else:
+            #             mypredictions.append(-1)
+            # for iTest in range(len(uniqueClasses)):
+            #     testIndices=np.where(yTest==iTest)
+            #     if len(testIndices[0]) != 0:
+            #         mypredictions.append(classifier.predict(xTest[testIndices]))
+            #     else:
+            #         mypredictions.append(-1)
 
-
-yTrain=yTrain.astype("uint")
-
-# for i in range(len(uniqueClasses)):
-#     classifier = GaussianMixture(n_components=5, covariance_type="diag", max_iter=100)
-#     indices=np.where(yTrain==i)
-#     classifier.fit(X_train[indices])
-#     mypredictions=[]
-#     for j, x in enumerate(X_train):
-#         x = x.reshape(1, featuresCount)
-#         mypredictions.append(classifier.score(x))
-#         if yTrain[j]== i:
-#             print(" We are at writer ", i , " and this classifier classified" ,classifier.score(x))
-#     predictions.append(mypredictions)
-#
-#
-# print("##############Training###########")
-# print(predictions)
-#
-# # print(predictions.shape)
-#
-# print(np.argmax(predictions ,axis=0))
-# print(yTrain == np.argmax(predictions ,axis=0))
-predictions = []
-yTest = np.array(yTest)
-
-for writerID in uniqueClasses:
-    yTest[yTest == writerID] =  int(np.where(uniqueClasses == writerID)[0][0])
-
-
-yTest=yTest.astype("uint")
-
-
-
-
-n_components = np.arange(1, 21)
-
-
-
-########### Trial with BIC #################3
-for i in range(len(uniqueClasses)):
-    indices=np.where(yTrain==i)
-    n_components = range(1,np.array(indices).shape[1])
-
-    models = [GaussianMixture(n, covariance_type='diag', random_state=0,  init_params = 'kmeans').fit(X_train[indices])
-              for n in n_components]
-
-    bic_y=[m.bic(X_train[indices]) for m in models]
-    aic_y=[m.aic(X_train[indices]) for m in models]
-
-    bestN=np.argmin(aic_y)
-
-    classifier = GaussianMixture(n_components=bestN, covariance_type="diag", max_iter=100, random_state=0,  init_params = 'kmeans')
-    classifier.fit(X_train[indices])
-
-    mypredictions = []
-    # for testLine in testFeaturesVectors:
-    #     testLine = testLine.reshape(1,featuresCount)
-    mypredictions.append(classifier.score(testFeaturesVectors))
-
-    predictions.append(mypredictions)
+            mypredictions = []
+            for iTest in range(len(uniqueClasses)):
+                testIndices=np.where(yTest==iTest)
+                if len(testIndices[0]) != 0:
+                    # for testVector in xTest[testIndices]:
+                    # testVector = testVector.reshape(1,-1)
+                    mypredictions.append(classifier.score(xTest[testIndices]))
+                else:
+                    mypredictions.append(-1)
 
 
 
 
-
-
-# el aslyeen
-#
-#
-#
-# for i in range(len(uniqueClasses)):
-#     classifier = GaussianMixture(n_components=5, covariance_type="diag", max_iter=100)
-#     indices=np.where(yTrain==i)
-#     classifier.fit(X_train[indices])
-#     mypredictions = []
-#     for testLine in testFeaturesVectors:
-#         testLine = testLine.reshape(1,featuresCount)
-#         mypredictions.append(classifier.score(testLine))
-#
-#     predictions.append(mypredictions)
+            predictions.append(mypredictions)
+        else:
+            print("xtrain's shape is ", xTrain[indices].shape)
 
 
 
-print("##############Testing###########")
-print(predictions)
+    # predictions.append(MinimumDistanceClassifier(xTest, xTrain, len(uniqueClasses), yTrain))
 
-# print(predictions.shape)
+    print("##############Testing###########")
+    print(predictions)
 
-print(np.argmax(predictions ,axis=0))
-print(yTest == np.argmax(predictions ,axis=0))
+    print(np.argmax(predictions ,axis=0))
 
-# yTest =
+    for iTest in range(len(uniqueClasses)):
+        testIndices=np.where(yTest==iTest)
+        if len(testIndices[0]) != 0:
+            accuracy+= accuracy_score([iTest], [np.argmax(predictions,axis=0)[iTest]])
+            print("Current accuracy is ", accuracy/(t+1))
 
 
-
-
-# for index, (name, classifier) in enumerate(classifiers.items()):
-#     # Since we have class labels for the training data, we can
-#     # initialize the GMM parameters in a supervised manner.
-#     classifier.means_ = np.array([X_train[yTrain == i].mean(axis=0)
-#                                   for i in uniqueClasses])
-#
-#     # Train the other parameters using the EM algorithm.
-#     classifier.fit(X_train)
-#
-#     # h = plt.subplot(2, n_classifiers / 2, index + 1)
-#
-#     # for n, color in enumerate('rgb'):
-#     #     data = X_train[yTrain == n]
-#     #     plt.scatter(data[:, 0], data[:, 1], 0.8, color=color,
-#     #                 label=yTrain)
-#     # Plot the test data with crosses
-#     # for n, color in enumerate('rgb'):
-#     #     data = X_test[y_test == n]
-#     #     plt.plot(data[:, 0], data[:, 1], 'x', color=color)
-#
-#     # y_train_pred = np.array(classifier.predict(X_train))
-#     y_train_pred = classifier.predict(X_train)
-#     for writerID in uniqueClasses:
-#         yTrain[yTrain == writerID] =  int(np.where(uniqueClasses == writerID)[0][0])
-#     # test=list(enumerate(yTrain))
-#     # ytest=
-#     trainAccuracy = 0
-#     y_train_pred=y_train_pred.astype("uint")
-#     yTrain=yTrain.astype("uint")
-#     for pred_index in range(len(y_train_pred)):
-#         if y_train_pred[pred_index] == yTrain[pred_index]:
-#             trainAccuracy += 1
-#
-#     print("Accuracy: " , trainAccuracy*100/len(y_train_pred))
-#     # plt.text(0.05, 0.9, 'Train accuracy: %.1f' % train_accuracy,
-#     #          transform=h.transAxes)
-#
-#     # y_test_pred = classifier.predict(X_test)
-#     # test_accuracy = np.mean(y_test_pred.ravel() == y_test.ravel()) * 100
-#     # plt.text(0.05, 0.8, 'Test accuracy: %.1f' % test_accuracy,
-    #          transform=h.transAxes)
+print("Total accuracy is ", accuracy/iterationsCount)
