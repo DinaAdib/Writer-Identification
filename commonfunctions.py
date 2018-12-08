@@ -441,11 +441,13 @@ def preprocessForm(filename):
     return extractedLines
 
 def normalizeFeatures(features):
-
+    mean = np.mean(features, axis=0)
+    std = np.std(features, axis=0)
     features = (features - np.mean(features, axis=0)) / (np.std(features, axis=0))
     # else:
     #     print("features ", features, " has std = 0")
-    return features
+
+    return features, mean, std
 
 
 # This function sets features vectors for a specific form image using sliding window technique
@@ -571,13 +573,39 @@ def getFeaturesVectors(extractedLines, windowWidth):
         # imageFeaturesVectors[index].append(np.average(upperContourOrientation))
         # imageFeaturesVectors[index].append(np.average(lowerContourOrientation))
         # imageFeaturesVectors[index].append(np.average(horizontalBlackToWhiteTrans))
-        ub, lb = getBounds(img)
-        imageFeaturesVectors[index].append(ub)
-        imageFeaturesVectors[index].append(lb)
+        if len(img[img == 255]) > 0:
+            indices = np.where(img == [255])
+            topContour = indices[1][0]
+
+            # Fifth Feature: Lower Contour Position
+            bottomContour = indices[1][-1]
+
+
+            ub, lb = getBounds(img)
+            imageFeaturesVectors[index].append(ub)
+            # imageFeaturesVectors[index].append(lb)
+
+            f1 = math.fabs(topContour - ub)
+            f2 = math.fabs(ub - lb)
+            f3 = math.fabs(lb - bottomContour)
+            # f4 = f1/f2
+            # f5 = f1/f3
+            # f6 = f2/f3
+
+            imageFeaturesVectors[index].append(f1)
+            imageFeaturesVectors[index].append(f2)
+            # imageFeaturesVectors[index].append(f3)
+            # imageFeaturesVectors[index].append(f4)
+            # imageFeaturesVectors[index].append(f5)
+            # imageFeaturesVectors[index].append(f6)
+
+
         # imageFeaturesVectors[index].append(ub/lb)
         # imageFeaturesVectors[index].append(ub-lb)
         # imageFeaturesVectors[index].append(np.average(verticalBlackToWhiteTrans))
         # imageFeaturesVectors[index].append(np.average(blackPixelsBetweenContours))
+        else:
+            return None
     return imageFeaturesVectors
 
 
@@ -598,11 +626,14 @@ def pickRandomForms(candidateWriters):
 
 
 def getLabeledData(filename, windowWidth, labelVal,formsFeaturesVectors, labels):
+    print("current filename is ", filename)
     extractedLines = preprocessForm(filename)
     if extractedLines is not None:
         if len(extractedLines) != 0:
-            featuresVectors = np.array(getFeaturesVectors(extractedLines, windowWidth))
-            if featuresVectors is not None:
+            featuresVector = getFeaturesVectors(extractedLines, windowWidth)
+            if featuresVector is not None:
+                featuresVectors = np.array(featuresVector)
+                print("Features vectors shape is ", featuresVectors.shape)
                 formsFeaturesVectors = np.concatenate((formsFeaturesVectors, featuresVectors))
                 for i in range(len(extractedLines)):
                     labels.append(labelVal)
@@ -610,9 +641,27 @@ def getLabeledData(filename, windowWidth, labelVal,formsFeaturesVectors, labels)
                     writer = csv.writer(filedata, delimiter=',')
                     for featuresVector in featuresVectors:
                         writer.writerow(featuresVector)
-        else:
-            print("Zero extracted lines")
+            else:
+                print("Zero extracted lines")
     else:
         print("handwritten returned none")
 
+
     return formsFeaturesVectors, labels
+
+
+def MinimumDistanceClassifier(testFeatures, features, classesCount, yTrain):
+    dist = []
+    means =[]
+    for i in range(classesCount):
+        indices = np.where(yTrain == i)
+        means.append(np.mean(features[indices], axis=0))
+
+    for mean in means:
+        dist.append(np.linalg.norm(mean-np.mean(testFeatures, axis=0)))
+
+
+    index = np.argmin(np.array(dist), axis=0)
+
+    classification=index+1
+    return classification
