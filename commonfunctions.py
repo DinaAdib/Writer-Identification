@@ -223,7 +223,7 @@ def getHandwrittenPart(greyImage):
     # show_images([greyImage], ["BLURRING"])
 
     greyImage = np.uint8(greyImage)
-    print(np.min(greyImage))
+    # print(np.min(greyImage))
     greyImage[greyImage < 200] = 0
     cannyImage = cv2.Canny(greyImage, 100, 150)
     #    show_images([edges],["EDGES"])
@@ -235,12 +235,12 @@ def getHandwrittenPart(greyImage):
     #     maxLineGap = 2
     #     lines = cv2.HoughLinesP(cannyImage, 5, np.pi / 180, threshold=250)
 
-    fig, axes = plt.subplots(1, 2, figsize=(20, 6))
-    ax = axes.ravel()
-    ax[0].imshow(greyImage, cmap=cm.gray)
-    ax[0].set_title('Input image')
-    ax[0].set_axis_off()
-    ax[1].imshow(greyImage, cmap=cm.gray)
+    # fig, axes = plt.subplots(1, 2, figsize=(20, 6))
+    # ax = axes.ravel()
+    # ax[0].imshow(greyImage, cmap=cm.gray)
+    # ax[0].set_title('Input image')
+    # ax[0].set_axis_off()
+    # ax[1].imshow(greyImage, cmap=cm.gray)
 
     yprevious = 0
     yoptimum = []
@@ -264,13 +264,13 @@ def getHandwrittenPart(greyImage):
         # else:
         #     yprevious=y
 
-        ax[1].plot((x1, y1), (x2, y2), '-r')
-
-    ax[1].set_xlim((0, greyImage.shape[1]))
-    ax[1].set_ylim((greyImage.shape[0], 0))
-    ax[1].set_axis_off()
-    ax[1].set_title('Detected lines')
-    plt.tight_layout()
+    #     ax[1].plot((x1, y1), (x2, y2), '-r')
+    #
+    # ax[1].set_xlim((0, greyImage.shape[1]))
+    # ax[1].set_ylim((greyImage.shape[0], 0))
+    # ax[1].set_axis_off()
+    # ax[1].set_title('Detected lines')
+    # plt.tight_layout()
     # plt.show()
     height = greyImage.shape[0]
 
@@ -294,7 +294,7 @@ def getHandwrittenPart(greyImage):
 def greyImage(img):
     greyImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     threshold = threshold_otsu(greyImg)
-    print(threshold)
+    # print(threshold)
     maxValue = np.array(greyImg).max()
     if maxValue <= 1:
         print("hhhhhh")
@@ -345,15 +345,56 @@ def labelForms():
             Writers[writerID].append(formID)
     return Writers
 
+def eightDirections(window):
+    x = 2
+    y = 2
+    windowHist = np.zeros((1, 9))
+    if window[x, y] == 0:
+        return windowHist
+    windowHist[0][0] = window[x + 1, y] & window[x + 2, y]
+    windowHist[0][1] = window[x + 1, y - 1] & window[x + 2, y - 1]
+    windowHist[0][2] = window[x + 1, y - 1] & window[x + 2, y - 2]
+    windowHist[0][3] = window[x, y - 1] & window[x + 1, y - 2]
+    windowHist[0][4] = window[x, y - 1] & window[x, y - 2]
+    windowHist[0][5] = window[x, y - 1] & window[x - 1, y - 2]
+    windowHist[0][6] = window[x - 1, y - 1] & window[x - 2, y - 2]
+    windowHist[0][7] = window[x - 1, y - 1] & window[x - 2, y - 1]
+    windowHist[0][8] = window[x - 1, y] & window[x - 2, y]
+    return windowHist
 
+
+def computeSlantHistogram( line, ub, lb):
+    line = np.array(line)
+    scale_percent=25
+    width = int(line.shape[1] * scale_percent / 100)
+    height = int(line.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    lineResize=cv2.resize(line, dim, interpolation = cv2.INTER_AREA)
+    #showLines(line,lineResize,"after resize")
+    edgeX = sobel_h(lineResize)
+    edgeY = sobel_v(lineResize)
+    edgeMagnitude = np.sqrt(np.square(edgeX) + np.square(edgeY))
+    #showLines(edgeMagnitude, line, "in slant")
+    # edgeAngle=np.arctan(edgeY/edgeX)
+    # edgeAngle8=np.mod(edgeAngle,8*(np.ones(edgeAngle.shape)))
+    histogram = np.zeros((1,9))
+    h, w = lineResize.shape
+    lineResize[lineResize==255]=1
+    for i in range(2, h - 2):
+        for j in range(2, w - 2):
+            window = lineResize[i - 2:i + 3, j - 2:j + 3]
+            windowHistogram = eightDirections(window)
+            histogram = histogram + windowHistogram
+    return  histogram
 
 # This function preprocesses a form
 def preprocessForm(filename):
     # Read image and convert it to binary
-    grayImage = greyImage(cv2.imread(filename))
-    # image = binarizeImage(cv2.imread(filename))
-    # io.imshow(image)
+    img = cv2.imread(filename)
+    grayImage = greyImage(img)
 
+    # io.imshow(image)
+    #image = binarizeImage(cv2.imread(filename))
     image = (getHandwrittenPart(grayImage))
     if image is None:
         print("A problem occured in file ", filename)
@@ -369,12 +410,12 @@ def preprocessForm(filename):
     #
     # image=np.array(image).astype('uint8')
 
-    fig, axes = plt.subplots(1, 2, figsize=(20, 6))
-    ax = axes.ravel()
-    ax[0].imshow(image, cmap=cm.gray)
-    ax[0].set_title('Input image')
-    ax[0].set_axis_off()
-    plt.tight_layout()
+    # fig, axes = plt.subplots(1, 2, figsize=(20, 6))
+    # ax = axes.ravel()
+    # ax[0].imshow(image, cmap=cm.gray)
+    # ax[0].set_title('Input image')
+    # ax[0].set_axis_off()
+    # plt.tight_layout()
     # plt.show()
     verticalHistogram = image.sum(axis=1)
     # box = np.ones(5) / 5
@@ -383,14 +424,15 @@ def preprocessForm(filename):
     # localMinima = [y for i, y in enumerate(ys) if
     #                ((i == 0) or (ys[i - 1] >= y)) and ((i == len(ys) - 1) or (y < ys[i + 1]))]
     smallest=int(np.average(verticalHistogram)-np.min(verticalHistogram))/4
-    print(smallest)
+    # print(smallest)
     linesArrays = splitz(verticalHistogram, int(smallest))
-    plt.plot(verticalHistogram)
+    # plt.plot(verticalHistogram)
     # plt.show()
     horizontalHistogram = image.sum(axis=0)
     # linesArrays = (list(splitz(verticalHistogram, 2000)))
 
-    marginsArrays = (list(splitz(horizontalHistogram[30:], 100)))
+    smallest=int(np.average(horizontalHistogram)-np.min(horizontalHistogram))/4
+    marginsArrays = (list(splitz(horizontalHistogram[30:], smallest)))
     # plt.plot(horizontalHistogram)
     # plt.show()
     counter = 0
@@ -400,38 +442,23 @@ def preprocessForm(filename):
     filename = filename[0:-4]##re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1)
     if not os.path.exists(filename):
         os.makedirs(filename)
+    cv2.imwrite(filename + "/AfterExtraction.png", image)
 
     # For each array (representing a line) extracted, perform some preprocessing operations
     for arr in (linesArrays):
         if (arr[-1] - arr[0] > 30):
+            # print( " marginsArrays[0][0] is " ,  marginsArrays[0][0], " and marginsArrays[-1][-1] ", marginsArrays[-1][-1])
+            # print( "image shape is " ,  len(image))
+            # print( "arr[0] is " ,  arr[0], " and arr[-1] ", arr[-1])
             line = image[arr[0]:arr[-1], marginsArrays[0][0]:marginsArrays[-1][-1]]
-            # show_images([line],["Line"])
-            ## Vertical Scaling
-            # if len(line) != 0:
-            #     # while self.horizontal_hist_cropped[peaks[i]] > min(self.horizontal_hist_cropped[max(peaks[i] - window, 0):min(peaks[i] + window, len(self.horizontal_hist_cropped))]):
-            #     vScaleImg = verticalScaling(line)
-            #     # showLines(line, vScaleImg)
-            # if vScaleImg is not None:
-                # showLines(line, vScaleImg)
-                # fig, axes = plt.subplots(1, 2, figsize=(20, 6))
-                # ax = axes.ravel()
-                # ax[0].imshow(vScaleImg, cmap=cm.gray)
-                # ax[0].set_title('Input image')
-                # ax[0].set_axis_off()
-                # plt.tight_layout()
-                # plt.show()
-                # show_images([vScaleImg], ["Vertical Scaling"])
-                ## Thinning
-                # vScaleImg[vScaleImg != 0] = 255
-                # thinned = thin(vScaleImg)
             line[line != 0] = 255
-            thinned = thin(line)
-            thinned = np.array(thinned).astype('uint8')
-            thinned[thinned != 0] = 255
+            # thinned = thin(line)
+            # thinned = np.array(thinned).astype('uint8')
+            # thinned[thinned != 0] = 255
                 # print("Vscale image unique values ", np.unique(thinned))
-            extractedLines.append(thinned)
+            extractedLines.append(line)
                 #show_images([thinned],["hydrb hena"])
-            cv2.imwrite(filename + "/output" + str(counter) + ".png", thinned)
+            cv2.imwrite(filename + "/output" + str(counter) + ".png", line)
             counter += 1
             # else:
             #     extractedLines.append(line)
@@ -452,161 +479,39 @@ def normalizeFeatures(features):
 
 # This function sets features vectors for a specific form image using sliding window technique
 def getFeaturesVectors(extractedLines, windowWidth):
-    imageFeaturesVectors = [[] for y in range(len(extractedLines))]
+    featuresCount=11 ##change here
+    imageFeaturesVectors = np.empty([0,featuresCount])
+    histogram = np.zeros((1,9))
     for index, img in enumerate(extractedLines):
-        # img[img==255] = 1  ##dark values are 1 bec they are the foreground
-        # show_images([img],["AFTER OSTU"])
 
-        # features to be extracted
-        # centerOfGravityXLine = []
-        # centerOfGravityYLine = []
-        # blackPixelsLine = []
-        # MomentXLine = []
-        # MomentYLine = []
-        # upperContourPosition = []
-        # lowerContourPosition = []
-        # upperContourOrientation = []
-        # lowerContourOrientation = []
-        # horizontalBlackToWhiteTrans = []
-        # verticalBlackToWhiteTrans = []
-        # blackPixelsBetweenContours = []
-        #
-        # h, w = img.shape
-        # # print("h=", h ," w=",w)
-        #
-        # for i in range(w - windowWidth):
-        #     slidingWindow = img[:h, i:i + windowWidth]
-        #     # print(np.unique(slidingWindow))
-        #     # ignore sliding windows that contain only background pixels
-        #     checkwriting=slidingWindow[slidingWindow==255]
-        #   #  checkwriting=int(checkwriting)
-        #    # check=checkwriting.sum()
-        #     if len(checkwriting) >= 10:
-        #         contouredWindow = slidingWindow.copy()
-        #
-        #         indices = np.where(contouredWindow == [255])
-        #         # show_images([slidingWindow])
-        #         # NOTE: To get contours, sliding window must have values of 0 and 255
-        #         # contours = cv2.findContours(contouredWindow, cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
-        #
-        #         # contours = contours[0] if imutils.is_cv2() else contours[1]
-        #         # c = np.concatenate(contours)
-        #         # Fourth Feature: Upper Contour Position
-        #
-        #         topContour = [indices[1][0], indices[0][0]]
-        #         upperContourPosition.append(np.array(topContour))
-        #
-        #         # Fifth Feature: Lower Contour Position
-        #         bottomContour = [indices[1][-1], indices[0][-1]]
-        #         lowerContourPosition.append(np.array(bottomContour))
-        #
-        #         # gradient = np.gradient(slidingWindow)
-        #
-        #         # Sixth Feature: Upper Contour Orientation
-        #         # if gradient[0][topContour[1]][topContour[0]] != 0:
-        #         #     upperContourOrientation.append(math.atan(
-        #         #         gradient[1][topContour[1]][topContour[0]] / gradient[0][topContour[1]][topContour[0]]))
-        #         # else:
-        #         #     upperContourOrientation.append(math.pi / 2)
-        #         #
-        #         # # Seventh Feature: Lower Contour Orientation
-        #         # if gradient[0][bottomContour[1]][bottomContour[0]] != 0:
-        #         #     lowerContourOrientation.append(math.atan(
-        #         #         gradient[1][bottomContour[1]][bottomContour[0]] / gradient[0][bottomContour[1]][
-        #         #             bottomContour[0]]))
-        #         # else:
-        #         #     lowerContourOrientation.append(math.pi / 2)
-        #
-        #         minY = min(topContour[1], bottomContour[1])
-        #         maxY = max(topContour[1], bottomContour[1])
-        #         minX = min(topContour[0], bottomContour[0])
-        #         maxX = max(topContour[0], bottomContour[0])
-        #         slidingWindow = np.array(slidingWindow)
-        #         contourRectangle = slidingWindow[minY:(maxY + 1), minX:(maxX + 1)]
-        #         contourArea = (maxY - minY + 1) * (maxX - minX + 1)
-        #         blackPixelsBetweenContours.append(np.sum(contourRectangle) / contourArea)
-        #
-        #         slidingWindow[slidingWindow == 255] = 1
-        #
-        #         rightTransitions, bottomTransitions = greycomatrix(slidingWindow, [1], [0, 3 * math.pi / 2], levels=2)
-        #         # Eighth Feature: Black to white transition in both horizontal (to the right), and vertical (bottom) directions
-        #         horizontalBlackToWhiteTrans.append(rightTransitions[:, 0][1][0])
-        #         verticalBlackToWhiteTrans.append(bottomTransitions[:, 0][1][0])
-        #
-        #         slidingWindow = np.array(slidingWindow)
-        #
-        #         # first feature: number of pixels with text (white since image is inverted)
-        #         blackPixelsLine.append(np.sum(slidingWindow[slidingWindow == 1]))
-        #
-        #         # second feature: center of gravity
-        #         centerOfGravityX, centerOfGravityY = np.where(slidingWindow == 1)
-        #         if len(centerOfGravityY) != 0 and len(centerOfGravityX) != 0:
-        #             centerOfGravityXLine.append(round(np.average(centerOfGravityX)))
-        #             centerOfGravityYLine.append(round(np.average(centerOfGravityY)))
-        #             # print("At i= ",i,"Center of Gravity X: ",int(np.average(centerOfGravityX)) , "Center of Gravity Y: ", int(np.average(centerOfGravityY)))
-        #
-        #             # third feature: second order moment
-        #             MomentXLine.append(int(np.sum(np.square(centerOfGravityX)) / (slidingWindow.shape[1] ** 2)))
-        #             MomentYLine.append(int(np.sum(np.square(centerOfGravityY)) / (slidingWindow.shape[0] ** 2)))
-
-                # append averaged features vector
-        # imageFeaturesVectors[index]['Black Pixels Count']=np.average(blackPixelsLine)
-        # imageFeaturesVectors[index]['Center of Gravity'] = [np.average(centerOfGravityXLine), np.average(centerOfGravityYLine)]
-        # imageFeaturesVectors[index]['Moment'] = [np.average(MomentXLine), np.average(MomentYLine)]
-        # imageFeaturesVectors[index]['Upper Contour Position'] = np.average(upperContourPosition, axis=0)
-        # imageFeaturesVectors[index]['Lower Contour Position'] = np.average(lowerContourPosition, axis=0)
-        # imageFeaturesVectors[index]['Upper Contour Direction'] = np.average(upperContourOrientation)
-        # imageFeaturesVectors[index]['Lower Contour Direction'] =  np.average(lowerContourOrientation)
-        # imageFeaturesVectors[index]['Horizontal Black to White'] =  np.average(horizontalBlackToWhiteTrans)
-        # imageFeaturesVectors[index]['Vertical Black to White'] =  np.average(verticalBlackToWhiteTrans)
-        # imageFeaturesVectors[index]['Black Pixels Fraction'] =  np.average(blackPixelsBetweenContours)
-
-        # imageFeaturesVectors[index].append(np.average(blackPixelsLine))
-        # imageFeaturesVectors[index].append(np.average(centerOfGravityXLine))
-        # imageFeaturesVectors[index].append(np.average(centerOfGravityYLine))
-        # imageFeaturesVectors[index].append(np.average(MomentXLine))
-        # imageFeaturesVectors[index].append(np.average(MomentYLine))
-        # imageFeaturesVectors[index].append(np.average(upperContourPosition, axis=0)[0])
-        # imageFeaturesVectors[index].append(np.average(upperContourPosition, axis=0)[1])
-        # imageFeaturesVectors[index].append(np.average(lowerContourPosition, axis=0)[0])
-        # imageFeaturesVectors[index].append(np.average(lowerContourPosition, axis=0)[1])
-        # imageFeaturesVectors[index].append(np.average(upperContourOrientation))
-        # imageFeaturesVectors[index].append(np.average(lowerContourOrientation))
-        # imageFeaturesVectors[index].append(np.average(horizontalBlackToWhiteTrans))
-        if len(img[img == 255]) > 0:
+        if len(img[img == 255]) > 10:
+            lineFeaturesVector=[]
             indices = np.where(img == [255])
             topContour = indices[1][0]
-
-            # Fifth Feature: Lower Contour Position
             bottomContour = indices[1][-1]
-
-
             ub, lb = getBounds(img)
-            imageFeaturesVectors[index].append(ub)
-            # imageFeaturesVectors[index].append(lb)
-
             f1 = math.fabs(topContour - ub)
             f2 = math.fabs(ub - lb)
             f3 = math.fabs(lb - bottomContour)
-            # f4 = f1/f2
-            # f5 = f1/f3
-            # f6 = f2/f3
-
-            imageFeaturesVectors[index].append(f1)
-            imageFeaturesVectors[index].append(f2)
-            # imageFeaturesVectors[index].append(f3)
-            # imageFeaturesVectors[index].append(f4)
-            # imageFeaturesVectors[index].append(f5)
-            # imageFeaturesVectors[index].append(f6)
-
-
-        # imageFeaturesVectors[index].append(ub/lb)
-        # imageFeaturesVectors[index].append(ub-lb)
-        # imageFeaturesVectors[index].append(np.average(verticalBlackToWhiteTrans))
-        # imageFeaturesVectors[index].append(np.average(blackPixelsBetweenContours))
+            lineFeaturesVector.append(f1)
+            lineFeaturesVector.append(f2)
+            histogram=computeSlantHistogram( img, ub, lb)
+            histogram=histogram/np.sum(histogram)
+            lineFeaturesVector=np.reshape(lineFeaturesVector,(1,2))
+            histogram=np.reshape(histogram,(1,9))
+            allFeatures=np.hstack((lineFeaturesVector, histogram))
+            #change here
+            imageFeaturesVectors=np.vstack((imageFeaturesVectors,allFeatures))
         else:
-            return None
-    return imageFeaturesVectors
+            continue
+
+
+    if imageFeaturesVectors.shape[0]>0:
+        return imageFeaturesVectors
+    else:
+        print("Failed to extract features , shape " , imageFeaturesVectors.shape)
+        return None
+
 
 
 def pickRandomForms(candidateWriters):
@@ -628,14 +533,14 @@ def pickRandomForms(candidateWriters):
 def getLabeledData(filename, windowWidth, labelVal,formsFeaturesVectors, labels):
     print("current filename is ", filename)
     extractedLines = preprocessForm(filename)
+    processedSuccessfully = True
+
     if extractedLines is not None:
         if len(extractedLines) != 0:
-            featuresVector = getFeaturesVectors(extractedLines, windowWidth)
-            if featuresVector is not None:
-                featuresVectors = np.array(featuresVector)
-                print("Features vectors shape is ", featuresVectors.shape)
-                formsFeaturesVectors = np.concatenate((formsFeaturesVectors, featuresVectors))
-                for i in range(len(extractedLines)):
+            featuresVectors = np.array(getFeaturesVectors(extractedLines, windowWidth))
+            if featuresVectors is not None:
+                formsFeaturesVectors = np.vstack((formsFeaturesVectors, featuresVectors))
+                for i in range(featuresVectors.shape[0]):
                     labels.append(labelVal)
                 with open("Features" + str(labelVal) + ".csv", 'a') as filedata:
                     writer = csv.writer(filedata, delimiter=',')
@@ -643,11 +548,13 @@ def getLabeledData(filename, windowWidth, labelVal,formsFeaturesVectors, labels)
                         writer.writerow(featuresVector)
             else:
                 print("Zero extracted lines")
+                processedSuccessfully = False
     else:
         print("handwritten returned none")
+        processedSuccessfully = False
 
 
-    return formsFeaturesVectors, labels
+    return formsFeaturesVectors, labels, processedSuccessfully
 
 
 def MinimumDistanceClassifier(testFeatures, features, classesCount, yTrain):
@@ -664,4 +571,22 @@ def MinimumDistanceClassifier(testFeatures, features, classesCount, yTrain):
     index = np.argmin(np.array(dist), axis=0)
 
     classification=index+1
+    return classification
+
+
+def KNN(testFeatures, features, k, labels):
+
+    dist = []
+    points = np.array(features)
+
+    for feature in features:
+        dist.append(np.linalg.norm(feature - np.mean(testFeatures, axis=0)))
+
+    idx = np.argpartition(dist, k,axis=0)
+
+
+    numbers,numCount=np.unique(labels[idx[:k]],return_counts=True)
+
+    classification = numbers[np.argmax(numCount)]
+
     return classification
