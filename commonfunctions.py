@@ -5,7 +5,7 @@ from scipy import signal
 from scipy.signal import filter_design as fd
 from scipy import fftpack
 
-#import imutils
+# import imutils
 import skimage.io as io
 import matplotlib.pyplot as plt
 import numpy as np
@@ -35,6 +35,7 @@ from skimage.feature import greycomatrix
 from sklearn import cluster
 from skimage.filters import threshold_otsu
 from sklearn.mixture import GaussianMixture
+from skimage import feature
 
 # Edges
 from skimage.filters import sobel_h, sobel, sobel_v, roberts, prewitt
@@ -47,6 +48,18 @@ from matplotlib.pyplot import bar
 import math
 from sklearn.metrics import accuracy_score
 import random
+
+
+# import the necessary packages
+# def local_binary_pattern(greyImage , binaryImage):
+#     greyImage=np.array(greyImage)
+#     [h , w]=greyImage
+#     histogram=np.zeros([1,265])
+#     for i in range(2,h-1):
+#         for j in range(2,w-1):
+#             if binaryImage[i][j]==255:
+#
+
 
 # This function splits a sequence of numbers on a given value (smallest)
 def splitz(seq, smallest):
@@ -120,6 +133,7 @@ def verticalScaling(img):
 
     return scaledImg
 
+
 def getBounds(img):
     img = np.array(img)
     original = np.copy(img)
@@ -150,6 +164,8 @@ def getBounds(img):
         img[ub, :] = np.ones([1, c])
 
     return ub, lb
+
+
 # Show the figures / plots inside the notebook
 def show_images(images, titles=None):
     # This function is used to show image(s) with titles by sending an array of images and an array of associated titles.
@@ -197,100 +213,187 @@ def getContours(img):
     return img
 
 
-def showLines(greyImage, image2):
+def interwordDistance(thresh):
+    #line_grey = greyImage(lineRGB)
+    #ret, thresh = cv2.threshold(line_grey, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+   # # cv2.imshow("Bin thresh", thresh)
+   #  #cv2.waitKey(0)
+   #
+   #  #showLines(thresh,line_grey,"Threshold")
+   #  _, contours, h = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+   #
+   #
+
+   #  for c in contours:
+   #      # get the bounding rect
+   #      x, y, w, h = cv2.boundingRect(c)
+   #      # draw a white rectangle to visualize the bounding rect
+   #      cv2.rectangle(lineRGB, (x, y), (x + w, y + h), 255, 5)
+   #      wordCount+=1
+   #      if wordCount==5:
+   #          break
+   #
+   #  cv2.imshow("contour image", lineRGB)
+   #  cv2.waitKey(0)
+   #
+   #  thresh=np.array(thresh)/255
+   #  cv2.imshow("threshold" ,thresh)
+   #  cv2.waitKey(0)
+    scale_percent = 25
+    width = int(thresh.shape[1] * scale_percent / 100)
+    height = int(thresh.shape[0] * scale_percent / 100)
+    dim = (width, height)
+    resizedLine = cv2.resize(thresh, dim, interpolation=cv2.INTER_AREA)/255
+    verticalSum=np.sum(resizedLine,axis=0)
+    # plt.plot(range(len(verticalSum)),verticalSum)
+    # plt.show()
+    # showLines(resizedLine,resizedLine,"resized")
+    zeroIndicesX=np.where(verticalSum==0)
+    diffIndices=np.diff(zeroIndicesX)
+    diffIndices[diffIndices<20]=0
+    avgInterwordDistance=np.average(diffIndices)
+    return avgInterwordDistance
+
+
+
+    return avgInterwordDistance
+
+
+def showLines(greyImage, image2, title):
     fig, axes = plt.subplots(1, 2, figsize=(20, 6))
     ax = axes.ravel()
     ax[0].imshow(greyImage, cmap=cm.gray)
-    ax[0].set_title('Input image')
+    ax[0].set_title(title)
     ax[0].set_axis_off()
-    ax[1].imshow(greyImage, cmap=cm.gray)
 
+    ax[1].imshow(image2, cmap=cm.gray)
     ax[1].set_xlim((0, image2.shape[1]))
     ax[1].set_ylim((image2.shape[0], 0))
     ax[1].set_axis_off()
-    ax[1].set_title('Detected lines')
+    ax[1].set_title('Image 2')
     plt.tight_layout()
-    #plt.show()
-
-
-def getHandwrittenPart(greyImage):
-    # greyImage = cv2.GaussianBlur(greyImage,(5,5),0)
-    kernel = np.array([[1, 1, 1],
-                       [1, 1, 1],
-                       [1, 1, 1]])
-    kernel = kernel / 9
-    greyImage = convolve2d(greyImage, kernel)
-    # show_images([greyImage], ["BLURRING"])
-
-    greyImage = np.uint8(greyImage)
-    # print(np.min(greyImage))
-    greyImage[greyImage < 200] = 0
-    cannyImage = cv2.Canny(greyImage, 100, 150)
-    #    show_images([edges],["EDGES"])
-
-    hspace, angles, dists = hough_line(cannyImage)
-    hspace, angles, dists = hough_line_peaks(hspace, angles, dists, threshold=0.18 * np.max(hspace))
-
-    #     minLineLength = 2
-    #     maxLineGap = 2
-    #     lines = cv2.HoughLinesP(cannyImage, 5, np.pi / 180, threshold=250)
-
-    # fig, axes = plt.subplots(1, 2, figsize=(20, 6))
-    # ax = axes.ravel()
-    # ax[0].imshow(greyImage, cmap=cm.gray)
-    # ax[0].set_title('Input image')
-    # ax[0].set_axis_off()
-    # ax[1].imshow(greyImage, cmap=cm.gray)
-
-    yprevious = 0
-    yoptimum = []
-    for angle, dist in zip(angles, dists):  # This line draws the line in red
-        x1 = 0
-        y1 = dist / math.cos(angle)
-
-        y2 = 0
-        x2 = dist / math.sin(angle)
-        angleDegree = angle * 180 / np.pi
-        # print(angleDegree)
-
-        if (angleDegree <= 100 and angleDegree >= 80):
-            yoptimum.append(x2)
-        #
-        # if yprevious-y >200:
-        #     print(yprevious , y )
-        #     yoptimum.append(yprevious)
-        #     yoptimum.append(y)
-        #     yprevious=y
-        # else:
-        #     yprevious=y
-
-    #     ax[1].plot((x1, y1), (x2, y2), '-r')
-    #
-    # ax[1].set_xlim((0, greyImage.shape[1]))
-    # ax[1].set_ylim((greyImage.shape[0], 0))
-    # ax[1].set_axis_off()
-    # ax[1].set_title('Detected lines')
-    # plt.tight_layout()
     # plt.show()
-    height = greyImage.shape[0]
 
-    yoptimum = np.array(yoptimum).astype(int)
-    # print("BEFORE:" ,yoptimum)
-    yoptimum = yoptimum[yoptimum > int(height / 8)]
-    yoptimum = yoptimum[yoptimum < int(7 * height / 8)]
 
-    yoptimum = np.sort(yoptimum)
-    ystart = 0
-    yend = 0
+def resize(img, width=None, height=None, interpolation=cv2.INTER_AREA):
+    global ratio
+    [w, h] = img.shape
 
-    # print("After" , yoptimum)
+    if width is None and height is None:
+        return img
+    elif width is None:
+        ratio = height / h
+        width = int(w * ratio)
+        resized = cv2.resize(img, (height, width), interpolation)
+        return resized
+    else:
+        ratio = width / w
+        height = int(h * ratio)
+        resized = cv2.resize(img, (height, width), interpolation)
+        return resized
 
-    for i, y in enumerate(yoptimum):
-        if i != 0 and y - yoptimum[i - 1] > 1000:
-            # show_images([greyImage[yoptimum[i-1]:y]], ["Lines"])
-            return greyImage[yoptimum[i - 1]:y]
 
-    return None
+
+def getHandwrittenPart(img):
+    imgray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    ret, thresh = cv2.threshold(imgray, 0, 255, cv2.THRESH_OTSU)
+    im2, contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    y_list = []
+    for contour in contours:
+        (x, y, w, h) = cv2.boundingRect(contour)
+
+        if w > img.shape[1] / 2 and w < img.shape[1] * 5 / 6:
+     #       print((x, y, w, h), img.shape[1])
+            cv2.rectangle(img, (x, y), (x + w, y + h), (255, 255, 255), 1)
+            y_list.append(y)
+    y_list = np.sort(y_list)
+    #print(y_list)
+    #show_images([img])
+
+    return y_list[-2], y_list[-1]
+
+
+
+# def getHandwrittenPart(greyImage):
+#     # greyImage = cv2.GaussianBlur(greyImage,(5,5),0)
+#     kernel = np.array([[1, 1, 1],
+#                        [1, 1, 1],
+#                        [1, 1, 1]])
+#     kernel = kernel / 9
+#     greyImage = convolve2d(greyImage, kernel)
+#     # show_images([greyImage], ["BLURRING"])
+#
+#     greyImage = np.uint8(greyImage)
+#     # print(np.min(greyImage))
+#     greyImage[greyImage < 200] = 0
+#     cannyImage = cv2.Canny(greyImage, 100, 150)
+#     #    show_images([edges],["EDGES"])
+#
+#     hspace, angles, dists = hough_line(cannyImage)
+#     hspace, angles, dists = hough_line_peaks(hspace, angles, dists, threshold=0.18 * np.max(hspace))
+#
+#     #     minLineLength = 2
+#     #     maxLineGap = 2
+#     #     lines = cv2.HoughLinesP(cannyImage, 5, np.pi / 180, threshold=250)
+#
+#     # fig, axes = plt.subplots(1, 2, figsize=(20, 6))
+#     # ax = axes.ravel()
+#     # ax[0].imshow(greyImage, cmap=cm.gray)
+#     # ax[0].set_title('Input image')
+#     # ax[0].set_axis_off()
+#     # ax[1].imshow(greyImage, cmap=cm.gray)
+#
+#     yprevious = 0
+#     yoptimum = []
+#     for angle, dist in zip(angles, dists):  # This line draws the line in red
+#         x1 = 0
+#         y1 = dist / math.cos(angle)
+#
+#         y2 = 0
+#         x2 = dist / math.sin(angle)
+#         angleDegree = angle * 180 / np.pi
+#         # print(angleDegree)
+#
+#         if (angleDegree <= 100 and angleDegree >= 80):
+#             yoptimum.append(x2)
+#         #
+#         # if yprevious-y >200:
+#         #     print(yprevious , y )
+#         #     yoptimum.append(yprevious)
+#         #     yoptimum.append(y)
+#         #     yprevious=y
+#         # else:
+#         #     yprevious=y
+#
+#     #     ax[1].plot((x1, y1), (x2, y2), '-r')
+#     #
+#     # ax[1].set_xlim((0, greyImage.shape[1]))
+#     # ax[1].set_ylim((greyImage.shape[0], 0))
+#     # ax[1].set_axis_off()
+#     # ax[1].set_title('Detected lines')
+#     # plt.tight_layout()
+#     # plt.show()
+#     height = greyImage.shape[0]
+#
+#     yoptimum = np.array(yoptimum).astype(int)
+#     # print("BEFORE:" ,yoptimum)
+#     yoptimum = yoptimum[yoptimum > int(height / 8)]
+#     yoptimum = yoptimum[yoptimum < int(7 * height / 8)]
+#
+#     yoptimum = np.sort(yoptimum)
+#     ystart = 0
+#     yend = 0
+#
+#     # print("After" , yoptimum)
+#
+#     for i, y in enumerate(yoptimum):
+#         if i != 0 and y - yoptimum[i - 1] > 1000:
+#             # show_images([greyImage[yoptimum[i-1]:y]], ["Lines"])
+#             return greyImage[yoptimum[i - 1]:y]
+#
+#     return None
+
+
 def greyImage(img):
     greyImg = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     threshold = threshold_otsu(greyImg)
@@ -345,6 +448,7 @@ def labelForms():
             Writers[writerID].append(formID)
     return Writers
 
+
 def eightDirections(window):
     x = 2
     y = 2
@@ -363,44 +467,40 @@ def eightDirections(window):
     return windowHist
 
 
-def computeSlantHistogram( line, ub, lb):
+def computeSlantHistogram(line, ub, lb):
     line = np.array(line)
-    scale_percent=25
+    scale_percent = 25
     width = int(line.shape[1] * scale_percent / 100)
     height = int(line.shape[0] * scale_percent / 100)
     dim = (width, height)
-    lineResize=cv2.resize(line, dim, interpolation = cv2.INTER_AREA)
-    #showLines(line,lineResize,"after resize")
+    lineResize = cv2.resize(line, dim, interpolation=cv2.INTER_AREA)
+    # showLines(line,lineResize,"after resize")
     edgeX = sobel_h(lineResize)
     edgeY = sobel_v(lineResize)
     edgeMagnitude = np.sqrt(np.square(edgeX) + np.square(edgeY))
-    #showLines(edgeMagnitude, line, "in slant")
+    # showLines(edgeMagnitude, line, "in slant")
     # edgeAngle=np.arctan(edgeY/edgeX)
     # edgeAngle8=np.mod(edgeAngle,8*(np.ones(edgeAngle.shape)))
-    histogram = np.zeros((1,9))
+    histogram = np.zeros((1, 9))
     h, w = lineResize.shape
-    lineResize[lineResize==255]=1
+    lineResize[lineResize == 255] = 1
     for i in range(2, h - 2):
         for j in range(2, w - 2):
             window = lineResize[i - 2:i + 3, j - 2:j + 3]
             windowHistogram = eightDirections(window)
             histogram = histogram + windowHistogram
-    return  histogram
+    return histogram
+
 
 # This function preprocesses a form
 def preprocessForm(filename):
     # Read image and convert it to binary
     img = cv2.imread(filename)
-    grayImage = greyImage(img)
+    y1,y2= getHandwrittenPart(img)
 
-    # io.imshow(image)
-    #image = binarizeImage(cv2.imread(filename))
-    image = (getHandwrittenPart(grayImage))
-    if image is None:
-        print("A problem occured in file ", filename)
-        return None
-    image[image != 0] = 255
-    image = 255 - image
+    image=binarizeImage(img)
+    image=image[y1+20:y2-20,:]
+
     #
     # kernel = np.array([[1, 1, 1],
     #                    [1, 1, 1],
@@ -423,15 +523,16 @@ def preprocessForm(filename):
     # ys = verticalHistogram
     # localMinima = [y for i, y in enumerate(ys) if
     #                ((i == 0) or (ys[i - 1] >= y)) and ((i == len(ys) - 1) or (y < ys[i + 1]))]
-    smallest=int(np.average(verticalHistogram)-np.min(verticalHistogram))/4
+    smallest = int(np.average(verticalHistogram) - np.min(verticalHistogram)) / 4
     # print(smallest)
+
     linesArrays = splitz(verticalHistogram, int(smallest))
     # plt.plot(verticalHistogram)
     # plt.show()
     horizontalHistogram = image.sum(axis=0)
     # linesArrays = (list(splitz(verticalHistogram, 2000)))
 
-    smallest=int(np.average(horizontalHistogram)-np.min(horizontalHistogram))/4
+    smallest = int(np.average(horizontalHistogram) - np.min(horizontalHistogram)) / 4
     marginsArrays = (list(splitz(horizontalHistogram[30:], smallest)))
     # plt.plot(horizontalHistogram)
     # plt.show()
@@ -439,7 +540,7 @@ def preprocessForm(filename):
     extractedLines = []
 
     # create folder for this form to insert preprocessed lines images
-    filename = filename[0:-4]##re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1)
+    filename = filename[0:-4]  ##re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1)
     if not os.path.exists(filename):
         os.makedirs(filename)
     cv2.imwrite(filename + "/AfterExtraction.png", image)
@@ -455,9 +556,9 @@ def preprocessForm(filename):
             # thinned = thin(line)
             # thinned = np.array(thinned).astype('uint8')
             # thinned[thinned != 0] = 255
-                # print("Vscale image unique values ", np.unique(thinned))
+            # print("Vscale image unique values ", np.unique(thinned))
             extractedLines.append(line)
-                #show_images([thinned],["hydrb hena"])
+            # show_images([thinned],["hydrb hena"])
             cv2.imwrite(filename + "/output" + str(counter) + ".png", line)
             counter += 1
             # else:
@@ -466,6 +567,7 @@ def preprocessForm(filename):
             #     counter += 1
 
     return extractedLines
+
 
 def normalizeFeatures(features):
     mean = np.mean(features, axis=0)
@@ -479,13 +581,13 @@ def normalizeFeatures(features):
 
 # This function sets features vectors for a specific form image using sliding window technique
 def getFeaturesVectors(extractedLines, windowWidth):
-    featuresCount=11 ##change here
-    imageFeaturesVectors = np.empty([0,featuresCount])
-    histogram = np.zeros((1,9))
+    featuresCount = 14 ##chafeaturesCountnge here
+    imageFeaturesVectors = np.empty([0, featuresCount])
+    histogram = np.zeros((1, 9))
     for index, img in enumerate(extractedLines):
 
         if len(img[img == 255]) > 10:
-            lineFeaturesVector=[]
+            lineFeaturesVector = []
             indices = np.where(img == [255])
             topContour = indices[1][0]
             bottomContour = indices[1][-1]
@@ -493,30 +595,35 @@ def getFeaturesVectors(extractedLines, windowWidth):
             f1 = math.fabs(topContour - ub)
             f2 = math.fabs(ub - lb)
             f3 = math.fabs(lb - bottomContour)
+            f4 = f1 / f2
+            avgDist=interwordDistance(img)
+            # f5 = f2 / f3
             lineFeaturesVector.append(f1)
             lineFeaturesVector.append(f2)
-            histogram=computeSlantHistogram( img, ub, lb)
-            histogram=histogram/np.sum(histogram)
-            lineFeaturesVector=np.reshape(lineFeaturesVector,(1,2))
-            histogram=np.reshape(histogram,(1,9))
-            allFeatures=np.hstack((lineFeaturesVector, histogram))
-            #change here
-            imageFeaturesVectors=np.vstack((imageFeaturesVectors,allFeatures))
+            lineFeaturesVector.append(f3)
+            lineFeaturesVector.append(f4)
+            lineFeaturesVector.append(avgDist)
+            histogram = computeSlantHistogram(img, ub, lb)
+            sumHistogram=np.sum(histogram)
+            if sumHistogram!=0:
+                histogram = histogram /sumHistogram
+            lineFeaturesVector = np.reshape(lineFeaturesVector, (1, featuresCount-9))  ##change
+            histogram = np.reshape(histogram, (1, 9))
+            allFeatures = np.hstack((lineFeaturesVector, histogram))
+            imageFeaturesVectors = np.vstack((imageFeaturesVectors, allFeatures))  ##change
         else:
             continue
 
-
-    if imageFeaturesVectors.shape[0]>0:
+    if imageFeaturesVectors.shape[0] > 0:
         return imageFeaturesVectors
     else:
-        print("Failed to extract features , shape " , imageFeaturesVectors.shape)
+        print("Failed to extract features , shape ", imageFeaturesVectors.shape)
         return None
-
 
 
 def pickRandomForms(candidateWriters):
     pickedWriters = random.sample(candidateWriters.keys(), 3)
-    testingLabel = random.randint(0,2)
+    testingLabel = random.randint(0, 2)
     trainingForms = []
     testingForm = ""
     trainingLabels = []
@@ -530,7 +637,7 @@ def pickRandomForms(candidateWriters):
     return trainingForms, testingForm, trainingLabels, testingLabel
 
 
-def getLabeledData(filename, windowWidth, labelVal,formsFeaturesVectors, labels):
+def getLabeledData(filename, windowWidth, labelVal, formsFeaturesVectors, labels):
     print("current filename is ", filename)
     extractedLines = preprocessForm(filename)
     processedSuccessfully = True
@@ -553,40 +660,43 @@ def getLabeledData(filename, windowWidth, labelVal,formsFeaturesVectors, labels)
         print("handwritten returned none")
         processedSuccessfully = False
 
-
     return formsFeaturesVectors, labels, processedSuccessfully
 
 
 def MinimumDistanceClassifier(testFeatures, features, classesCount, yTrain):
     dist = []
-    means =[]
+    means = []
     for i in range(classesCount):
         indices = np.where(yTrain == i)
         means.append(np.mean(features[indices], axis=0))
 
     for mean in means:
-        dist.append(np.linalg.norm(mean-np.mean(testFeatures, axis=0)))
-
+        dist.append(np.linalg.norm(mean - np.mean(testFeatures, axis=0)))
 
     index = np.argmin(np.array(dist), axis=0)
 
-    classification=index+1
+    classification = index + 1
     return classification
 
 
 def KNN(testFeatures, features, k, labels):
-
     dist = []
     points = np.array(features)
 
     for feature in features:
         dist.append(np.linalg.norm(feature - np.mean(testFeatures, axis=0)))
 
-    idx = np.argpartition(dist, k,axis=0)
+    idx = np.argpartition(dist, k, axis=0)
 
-
-    numbers,numCount=np.unique(labels[idx[:k]],return_counts=True)
+    numbers, numCount = np.unique(labels[idx[:k]], return_counts=True)
 
     classification = numbers[np.argmax(numCount)]
 
     return classification
+
+
+# TESTING CONNECTED COMPONENTS
+#foldername="Lines"
+# for filename in glob.glob('Lines/*.png'):
+#     img = cv2.imread(filename)
+#     connected_components(img)

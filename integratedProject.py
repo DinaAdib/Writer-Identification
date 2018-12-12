@@ -9,7 +9,7 @@ from sklearn.mixture import GaussianMixture
 ##########Global Variables############
 formsFolderName = "forms"
 windowWidth=14
-featuresCount = 11 ##change here
+featuresCount = 14##change here
 iterationsCount = 100
 accuracy = 0
 
