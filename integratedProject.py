@@ -20,11 +20,11 @@ f.close()
 f = open("time.txt", "w+")
 f.close()
 
-while total < iterationsCount:
+while total < iterationsCount: #H
 
-# for iterationFolder in sorted(glob.glob("data/*")):
-    trainingFormIDs, testingFormID, trainingLabels, testingLabel = pickRandomForms(candidateWriters)
-    # trainingFormIDs, testingFormID, trainingLabels = readData(iterationFolder)
+# for iterationFolder in sorted(glob.glob("data/*")): #H
+    trainingFormIDs, testingFormID, trainingLabels, testingLabel = pickRandomForms(candidateWriters) #H
+    # trainingFormIDs, testingFormID, trainingLabels = readData(iterationFolder) #H
     # trainingFormIDs = ['g06-026a', 'g06-011a', 'b04-181', 'b04-175', 'a04-085', 'a04-081']
     # testingFormID = 'a04-089'
 
@@ -40,8 +40,8 @@ while total < iterationsCount:
 
     t0 = time.time()
     for trainingIndex, formID in enumerate(trainingFormIDs):
-        filename = formsFolderName + "/" + formID + ".png"##re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1)
-        # filename = formID
+        filename = formsFolderName + "/" + formID + ".png"##re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1) #H
+        # filename = formID #H
         formsFeaturesVectors, labels, processedSuccessfully = getLabeledData(filename, windowWidth, trainingLabels[trainingIndex], formsFeaturesVectors, yTrain)
         if processedSuccessfully == False:
             continue
@@ -53,8 +53,8 @@ while total < iterationsCount:
 
 
     ########Processing Testing form###############
-    filename = formsFolderName + "/" + testingFormID + ".png"  ##re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1)
-    # filename = testingFormID
+    filename = formsFolderName + "/" + testingFormID + ".png"  ##re.match(r"" + formsFolderName + "/(.*)\.png", filename).group(1) #H
+    # filename = testingFormID #H
     xTest, yTest, processedSuccessfully = getLabeledData(filename, windowWidth, testingLabel, testFeaturesVectors,yTest)
     if processedSuccessfully == False:
         continue
